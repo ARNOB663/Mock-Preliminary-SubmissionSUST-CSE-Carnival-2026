@@ -6,8 +6,20 @@
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
+import dns from "node:dns";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+
+// Probe DNS, fall back to public DNS if local resolver refuses (Windows DoH stub).
+await new Promise((resolve) => {
+  dns.resolveSrv("_mongodb._tcp.raccoon.u3e2oc4.mongodb.net", (err) => {
+    if (err) {
+      dns.setServers(["1.1.1.1", "8.8.8.8"]);
+      console.warn("[seed] switched to public DNS:", err.code);
+    }
+    resolve();
+  });
+});
 
 import User from "../lib/models/User.js";
 import Profile from "../lib/models/Profile.js";
