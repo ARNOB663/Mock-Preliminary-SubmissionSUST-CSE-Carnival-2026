@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Hackathon Template",
+  title: "QueueStorm Triage · SUST CSE Carnival 2026",
   description:
-    "Next.js starter with MongoDB, SMTP email, Claude AI, and Google OAuth — ready to hack.",
+    "Rules-based ticket triage service for the QueueStorm warmup. Classifies customer complaints as wrong_transfer, payment_failed, refund_request, phishing_or_social_engineering, or other.",
 };
 
 export default async function RootLayout({ children }) {

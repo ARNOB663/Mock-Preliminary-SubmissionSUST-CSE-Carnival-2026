@@ -1,89 +1,13 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-
-function navForRole(role) {
-  if (role === "admin") {
-    return [
-      { href: "/admin", label: "Admin" },
-    ];
-  }
-  if (role === "employer") {
-    return [
-      { href: "/dashboard", label: "Overview" },
-      { href: "/dashboard/company", label: "Company" },
-      { href: "/dashboard/jobs", label: "Jobs" },
-      { href: "/dashboard/messages", label: "Messages" },
-      { href: "/dashboard/notifications", label: "Notifications" },
-    ];
-  }
-  // job_seeker (default)
-  return [
-    { href: "/dashboard", label: "Overview" },
-    { href: "/dashboard/applications", label: "Applications" },
-    { href: "/dashboard/saved-jobs", label: "Saved" },
-    { href: "/dashboard/messages", label: "Messages" },
-    { href: "/dashboard/notifications", label: "Notifications" },
-    { href: "/dashboard/profile", label: "Profile" },
-  ];
-}
-
-export function UserNav() {
-  const { data: session } = useSession();
-  const pathname = usePathname();
-  const role = session?.user?.role || "job_seeker";
-  const navItems = navForRole(role);
-
+/**
+ * UserNav — stub. The warmup triage service has no signed-in dashboard.
+ * Only included so the pre-existing template dashboard layout still compiles.
+ */
+export function UserNav({ user }) {
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur sticky top-0 z-10">
-      <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="font-semibold tracking-tight">
-            TechHire
-          </Link>
-          <nav className="flex items-center gap-1">
-            {navItems.map((item) => {
-              const active =
-                item.href === "/dashboard"
-                  ? pathname === "/dashboard"
-                  : pathname?.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md text-sm transition-colors",
-                    active
-                      ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50"
-                      : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {session?.user && (
-            <span className="text-sm text-zinc-600 dark:text-zinc-400 hidden sm:inline">
-              {session.user.email}
-            </span>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => signOut({ callbackUrl: "/" })}
-          >
-            Sign out
-          </Button>
-        </div>
-      </div>
-    </header>
+    <div className="text-sm text-gray-500">
+      {user?.name ? `Signed in as ${user.name}` : "Not signed in"}
+    </div>
   );
 }

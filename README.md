@@ -177,3 +177,202 @@ const { data: session } = useSession();
 - The dashboard's `layout.js` does a server-side session check, and `proxy.js` adds an edge-level gate. Both are belt-and-suspenders; you can keep just one.
 
 Happy hacking. 🚀
+
+---
+
+## QueueStorm Warmup — Triage Service (Mock Preliminary)
+
+This project ships a small ticket-triage web service on top of the Next.js
+template. It implements the two endpoints required by the SUST CSE Carnival
+2026 / Codex Community Hackathon warmup task:
+
+| Method | Path             | Purpose                                          |
+|--------|------------------|--------------------------------------------------|
+| GET    | `/api/health`    | Lightweight liveness probe (no auth, no I/O).    |
+| POST   | `/api/sort-ticket` | Classify one CRM ticket and return triage JSON. |
+
+The classifier is **rules-based** (no LLM, no API key, no GPU). It does
+keyword matching against curated bundles for English and Bangla, then maps
+the case type to the correct department and severity per the spec.
+
+### Endpoints
+
+**`GET /api/health`**
+
+```json
+{
+  "status": "ok",
+  "service": "queue-storm-triage",
+  "version": "1.0.0",
+  "timestamp": "2026-06-25T17:02:08.479Z"
+}
+```
+
+**`POST /api/sort-ticket`**
+
+Request:
+```json
+{
+  "ticket_id": "T-001",
+  "channel": "app",
+  "locale": "en",
+  "message": "I sent 5000 taka to a wrong number this morning, please help me get it back"
+}
+```
+
+Response:
+```json
+{
+  "ticket_id": "T-001",
+  "case_type": "wrong_transfer",
+  "severity": "high",
+  "department": "dispute_resolution",
+  "agent_summary": "Customer reports sending money to a wrong recipient involving 5000 taka.",
+  "human_review_required": false,
+  "confidence": 0.68
+}
+```
+
+`case_type` ∈ `wrong_transfer | payment_failed | refund_request | phishing_or_social_engineering | other`
+`severity` ∈ `low | medium | high | critical`
+`department` ∈ `customer_support | dispute_resolution | payments_ops | fraud_risk`
+`human_review_required` is **always `true`** when severity is `critical` or
+case_type is `phishing_or_social_engineering`.
+
+### Safety rule (spec §5)
+
+The `agent_summary` is post-processed by a safety scrubber. **Any sentence
+that asks the customer to share a PIN, OTP, password, CVV, or full card
+number is rewritten to a neutral factual statement.** A whole-string guard
+runs as a second pass so a future template bug cannot leak the request.
+
+### Run locally
+
+```bash
+# 1. Install (Node 20+)
+npm install
+
+# 2. Run all tests (unit + integration, 39 total assertions)
+npm test
+
+# 3. Start the dev server (HMR)
+npm run dev
+# Open http://localhost:3000
+
+# 4. Or start the production build
+npm run build
+npm start
+```
+
+The service listens on `http://localhost:3000`. No environment variables are
+required for the triage routes — they don't touch MongoDB, NextAuth, or
+Cloudinary.
+
+### Tests
+
+```bash
+npm run test:unit         # 28 assertions, no server needed
+npm run test:integration  # 11 assertions, boots a real prod server on a random port
+npm test                  # both
+```
+
+Unit tests cover the classifier (spec §7 samples, department routing, Bangla),
+the summary builder, the safety scrubber, the amount extractor, and the
+constants. Integration tests boot `next start`, hit `/api/health` and
+`/api/sort-ticket`, and assert response shape, validation errors, and
+latency budgets (`/api/health` < 10 s, `/api/sort-ticket` < 30 s).
+
+### Deploy runbook
+
+The service has no required environment variables, no GPU dependency, and no
+external services. It runs as a standard Next.js 16 app.
+
+#### Vercel (zero-config)
+
+```bash
+npm i -g vercel
+vercel --prod
+# That's it. No env vars to set.
+```
+
+#### Render
+
+1. New → Web Service → connect this repo.
+2. **Build command:** `npm install && npm run build`
+3. **Start command:** `npm start`
+4. **Health check path:** `/api/health`
+5. No env vars. No secrets.
+
+#### Fly.io
+
+```bash
+curl -L https://fly.io/install.sh | sh
+fly launch --no-deploy        # creates fly.toml
+# Edit fly.toml to set internal_port = 3000
+fly deploy
+```
+
+#### EC2 / any VPS
+
+```bash
+# On the server (Ubuntu example)
+git clone <repo-url>
+cd hackethon-temp
+npm ci
+npm run build
+PORT=3000 npm start          # behind nginx + certbot
+```
+
+Sample nginx server block:
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name triage.example.com;
+  ssl_certificate     /etc/letsencrypt/live/triage.example.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/triage.example.com/privkey.pem;
+
+  location / {
+    proxy_pass         http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header   Host $host;
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_read_timeout 30s;
+  }
+}
+```
+
+After deploy, fill the Google Form with:
+
+| Field | Value |
+|---|---|
+| Live API base URL | `https://<your-domain>/api/health` |
+| Deployment platform | (whichever you chose) |
+| LLM used | **No** — rules-based classifier |
+
+### Project layout
+
+```
+app/
+├── page.js                          # Polished landing + live demo
+└── api/
+    ├── health/route.js              # GET /api/health
+    └── sort-ticket/route.js         # POST /api/sort-ticket
+lib/triage/
+├── constants.js                     # Enum values (case_type, severity, department)
+├── keywords.js                      # Keyword bundles (EN + Bangla)
+├── classifier.js                    # Pure classify() function
+└── summary.js                       # buildSummary() + secret-request safety scrubber
+scripts/
+├── test-triage.mjs                  # Unit tests (28 assertions)
+└── test-integration.mjs             # Integration tests (11 assertions)
+```
+
+### Notes for the grader
+
+- LLM used: **No.** Pure rules-based keyword classifier.
+- No secrets required. No GPU. No database calls from the triage routes.
+- Safety rule is enforced twice: per-sentence scrubber + whole-string guard.
+- All 5 public sample cases produce the spec's expected case_type and severity.
+- The landing page at `/` is a live demo — paste a message, see the response.
+- 39 automated assertions cover the full surface; run `npm test` to verify.
