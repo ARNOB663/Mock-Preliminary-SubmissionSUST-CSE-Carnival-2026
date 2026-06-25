@@ -1,6 +1,7 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
+import { PusherProvider } from "@/components/pusher-provider";
 
 /**
  * Wraps the app in NextAuth's React context so client components can call
@@ -8,5 +9,9 @@ import { SessionProvider } from "next-auth/react";
  * data via getServerSession().
  */
 export function Providers({ children, session }) {
-  return <SessionProvider session={session}>{children}</SessionProvider>;
+  return (
+    <SessionProvider session={session}>
+      <PusherProvider>{children}</PusherProvider>
+    </SessionProvider>
+  );
 }

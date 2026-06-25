@@ -4,7 +4,8 @@
  *
  * Requires MONGODB_URI in env. Reads from .env.local automatically via Next's loader.
  */
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: ".env.local" });
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
