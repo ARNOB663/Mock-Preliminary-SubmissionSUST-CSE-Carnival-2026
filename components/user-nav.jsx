@@ -6,22 +6,44 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/chat", label: "AI Chat" },
-  { href: "/dashboard/email-test", label: "Email Test" },
-];
+function navForRole(role) {
+  if (role === "admin") {
+    return [
+      { href: "/admin", label: "Admin" },
+    ];
+  }
+  if (role === "employer") {
+    return [
+      { href: "/dashboard", label: "Overview" },
+      { href: "/dashboard/company", label: "Company" },
+      { href: "/dashboard/jobs", label: "Jobs" },
+      { href: "/dashboard/messages", label: "Messages" },
+      { href: "/dashboard/notifications", label: "Notifications" },
+    ];
+  }
+  // job_seeker (default)
+  return [
+    { href: "/dashboard", label: "Overview" },
+    { href: "/dashboard/applications", label: "Applications" },
+    { href: "/dashboard/saved-jobs", label: "Saved" },
+    { href: "/dashboard/messages", label: "Messages" },
+    { href: "/dashboard/notifications", label: "Notifications" },
+    { href: "/dashboard/profile", label: "Profile" },
+  ];
+}
 
 export function UserNav() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const role = session?.user?.role || "job_seeker";
+  const navItems = navForRole(role);
 
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur sticky top-0 z-10">
       <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="font-semibold tracking-tight">
-            Hackathon
+            TechHire
           </Link>
           <nav className="flex items-center gap-1">
             {navItems.map((item) => {
